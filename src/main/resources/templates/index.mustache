@@ -1,0 +1,30 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+   <title>URL Shorten Page</title>
+   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+</head>
+<body>
+   <h3>URL Shorten Page</h3>
+
+   <div class="col-md-12">
+       <div class="col-md-4">
+           <form>
+               <div class="form-group">
+                   <label for="url-string">URL 입력</label>
+                   <input type="text" class="form-control" id="url-string" placeholder="URL을 입력하세요">
+               </div>
+           </form>
+           <button type="button" class="btn btn-primary" id="btn-get-shorturl">Short URL</button>
+           <br>
+           <div id="short-url" class="text-md-left"></div>
+       </div>
+   </div>
+
+   <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+   <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js"></script>
+   <script src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/3.0.1/mustache.min.js"></script>
+   <script src="/js/app/index.js"></script>
+</body>
+</html>
