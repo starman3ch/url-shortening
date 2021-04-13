@@ -4,15 +4,12 @@ import com.musinsa.urlshorten.domain.UrlShorten;
 import com.musinsa.urlshorten.repository.UrlShortenRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import java.util.Optional;
 
 @Controller
@@ -32,19 +29,12 @@ public class RedirectController {
      * @return
      */
     @GetMapping("/{urlCode}")
-    public ResponseEntity redirectUrl(@PathVariable String urlCode) {
+    public void redirectUrl(@PathVariable String urlCode, HttpServletResponse response) throws IOException {
         Optional<UrlShorten> urlShortenOpt = urlShortenRepository.findById(urlCode);
-        if (!urlShortenOpt.isPresent()) {
-            return ResponseEntity.notFound().build();
-        }
-
-        try {
-            URI redirectUri = new URI(urlShortenOpt.get().getOriginUrl());
-            HttpHeaders httpHeaders = new HttpHeaders();
-            httpHeaders.setLocation(redirectUri);
-            return new ResponseEntity(httpHeaders, HttpStatus.SEE_OTHER);
-        } catch (URISyntaxException e) {
-            return ResponseEntity.notFound().build();
+        if (urlShortenOpt.isPresent()) {
+            response.sendRedirect(urlShortenOpt.get().getOriginUrl());
+        } else {
+            response.setStatus(HttpServletResponse.SC_NOT_FOUND);
         }
     }
 

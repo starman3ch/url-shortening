@@ -12,10 +12,10 @@ import java.util.Optional;
 @Repository
 public interface UrlShortenRepository extends JpaRepository<UrlShorten, String> {
 
-    Optional<UrlShorten> findByOriginUrl(String originUrl);
+    Optional<UrlShorten> findByOriginUrlDomain(String originUrlDomain);
 
     @Transactional
     @Modifying(clearAutomatically = true)
-    @Query("UPDATE UrlShorten u SET u.reqCount = u.reqCount + 1 where u.originUrl=?1")
-    int increaseReqCount(String originUrl);
+    @Query("UPDATE UrlShorten u SET u.reqCount = u.reqCount + 1 where u.originUrlDomain=?1")
+    int increaseReqCount(String originUrlDomain);
 }

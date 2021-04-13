@@ -1,11 +1,18 @@
 package com.musinsa.urlshorten;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.musinsa.urlshorten.common.Constants;
 import com.musinsa.urlshorten.dto.ShortUrlReq;
+import com.musinsa.urlshorten.dto.ShortUrlRes;
 import com.musinsa.urlshorten.repository.UrlShortenRepository;
 import com.musinsa.urlshorten.service.UrlShortenService;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,6 +23,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -24,23 +32,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
-//@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK, classes = UrlshortenApplication.class)
 @AutoConfigureMockMvc
-@TestPropertySource(locations = "classpath:application-integrationtest.properties")
 @ActiveProfiles("test")
 public class UrlShortenControllerTests {
 
-//    @TestConfiguration
-//    static class UrlShortenServiceContextConfiguration {
-//        @Bean
-//        public UrlShortenService urlShortenService() {
-//            return new UrlShortenService() {
-//
-//            };
-//        }
-//    }
 
-    // todo : given, when, then 스타일로...
 
     @Autowired
     private MockMvc mockMvc;
@@ -55,58 +51,112 @@ public class UrlShortenControllerTests {
     private UrlShortenService urlShortenService;
 
     @Autowired
-//    @MockBean
     private UrlShortenRepository urlShortenRepository;
 
-    // https://www.baeldung.com/mustache // todo -
+
+
+
+    @BeforeEach
+    public void setUp() {
+        this.urlShortenRepository.deleteAll();
+    }
+
 
     @Test
     @DisplayName("Index 페이지 로딩")
     public void indexPageLoading() {
-//        String body = this.restTemplate.getForObject("/", String.class);
-//        assertThat(body).contains("URL Shorten Page");
-
         ResponseEntity<String> entity = restTemplate.getForEntity("/", String.class);
         assertThat(entity.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(entity.getBody()).contains("URL Shorten Page");
-
     }
 
-    @Test
+
+    @ParameterizedTest
+    @ValueSource(strings = { "https://www.musinsa.com/", "http://www.musinsa.com/", "www.musinsa.com/", "www.musinsa.com" })
     @DisplayName("정상적으로 shortUrl을 생성해서 반환")
-    public void createShortUrl() throws Exception {
-        String url = "https://www.musinsa.com/";
+    public void createShortUrl(String url) throws Exception {
+        // Given
+
+        // When
         ShortUrlReq req = new ShortUrlReq();
         req.setUrl(url);
 
+        // Then
         mockMvc.perform(post("/shortUrl")
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
                     .content(objectMapper.writeValueAsString(req)))
                 .andDo(print())
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("originUrl").value(req.getUrl()))
+                .andExpect(jsonPath("originUrl").value(Constants.HTTP_PROTOCOL + urlShortenService.urlDomainString(url)))
                 .andExpect(jsonPath("shortUrl").exists())
-                .andExpect(jsonPath("reqCount").exists());
+                .andExpect(jsonPath("reqCount").value(1));
 
-//        String body = this.restTemplate.getForObject("/", String.class);
-//        assertThat(body).contains("SHORTEN URL");
-
-//        Mustache mustache = MustacheViewResolver
-        // todo - 화면에 그린것까지 어떻게 테스트하나??
     }
+
 
     @Test
-    @DisplayName("url 파라미터가 비어있는 경우 에러가 발생")
-    public void postEmptyUrlString() throws Exception {
-        mockMvc.perform(post("/shortUrl")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .accept(MediaType.APPLICATION_JSON))
+    @DisplayName("이미 요청했던 url에 대해서 같은 short url이 반환되고, Count 수는 +1이 반환됨.")
+    public void returnSameShortUrl() throws Exception {
+        // Given
+        String url = "www.musinsa.com";
+
+        // When
+        ShortUrlReq req = new ShortUrlReq();
+        req.setUrl(url);
+        MvcResult mvcResult1 = mockMvc.perform(post("/shortUrl")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
                 .andDo(print())
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("code").value("BAD_REQUEST"))
-                .andExpect(jsonPath("message").exists());
+                .andReturn();
+        MvcResult mvcResult2 = mockMvc.perform(post("/shortUrl")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andDo(print())
+                .andReturn();
+        ShortUrlRes res1 = objectMapper.readValue(mvcResult1.getResponse().getContentAsString(), new TypeReference<ShortUrlRes>() {});
+        ShortUrlRes res2 = objectMapper.readValue(mvcResult2.getResponse().getContentAsString(), new TypeReference<ShortUrlRes>() {});
+
+        // Then
+        Assertions.assertEquals(res1.getShortUrl(), res2.getShortUrl());
+        Assertions.assertEquals(res1.getReqCount() + 1, res2.getReqCount());
     }
+
+
+    @Test
+    @DisplayName("서로 다른 url에 대해서 다른 short url을 반환됨..")
+    public void returnDifferentShortUrl() throws Exception {
+        // Given
+        String url1 = "www.musinsa.com";
+        String url2 = "www.google.com";
+
+        // When
+        ShortUrlReq req1 = new ShortUrlReq();
+        req1.setUrl(url1);
+        ShortUrlReq req2 = new ShortUrlReq();
+        req2.setUrl(url2);
+        MvcResult mvcResult1 = mockMvc.perform(post("/shortUrl")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req1)))
+                .andDo(print())
+                .andReturn();
+        MvcResult mvcResult2 = mockMvc.perform(post("/shortUrl")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req2)))
+                .andDo(print())
+                .andReturn();
+        ShortUrlRes res1 = objectMapper.readValue(mvcResult1.getResponse().getContentAsString(), new TypeReference<ShortUrlRes>() {});
+        ShortUrlRes res2 = objectMapper.readValue(mvcResult2.getResponse().getContentAsString(), new TypeReference<ShortUrlRes>() {});
+
+        // Then
+        Assertions.assertNotEquals(res1.getShortUrl(), res2.getShortUrl());
+        Assertions.assertEquals(res1.getReqCount(), res2.getReqCount());
+    }
+
 
     @Test
     @DisplayName("url이 아닌 값을 url 파라미터로 넘겼을 경우 에러 발생")
@@ -125,19 +175,41 @@ public class UrlShortenControllerTests {
                 .andExpect(jsonPath("message").exists());
     }
 
-    @Test
-    @DisplayName("요청할 때 입력한 url에 'http://'가 없는 경우 붙여줌.")
-    public void httpProtocolStringNotExist() throws Exception {
-        // todo
-    }
 
     @Test
-    @DisplayName("이미 요청했던 url에 대해서 같은 short url이 반환되고, Count 수는 +1이 반환됨.")
-    public void returnSameShortUrl() throws Exception {
-        // todo
+    @DisplayName("유효한 short url로 접속 요청")
+    public void redirectSuccessWithValidShortUrl() throws Exception {
+
+        // Given
+        String url = "www.musinsa.com";
+        ShortUrlReq req = new ShortUrlReq();
+        req.setUrl(url);
+
+        // When
+        MvcResult mvcResult = mockMvc.perform(post("/shortUrl")
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .content(objectMapper.writeValueAsString(req)))
+                .andReturn();
+        ShortUrlRes shortUrlRes = objectMapper.readValue(mvcResult.getResponse().getContentAsString(), new TypeReference<ShortUrlRes>() {});
+
+        // Then
+        MvcResult redirectMvcResult = mockMvc.perform(get(shortUrlRes.getShortUrl()))
+                .andDo(print())
+                .andExpect(status().is3xxRedirection())
+                .andReturn();
+        assertThat(redirectMvcResult.getResponse().getHeader("Location")).isEqualTo(shortUrlRes.getOriginUrl());
     }
 
 
+    @Test
+    @DisplayName("유효하지 않은 short url로 접속 요청")
+    public void redirectFailedWithNotValidShortUrl() throws Exception {
+        String code = "abcdefgh";
+        mockMvc.perform(get("/" + code))
+                .andDo(print())
+                .andExpect(status().isNotFound());
+    }
 
 
 }

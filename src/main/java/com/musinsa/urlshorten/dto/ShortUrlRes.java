@@ -12,9 +12,10 @@ public class ShortUrlRes {
     private String shortUrl;
     private int reqCount;
 
+
     public static ShortUrlRes of(UrlShorten urlShorten) {
         ShortUrlRes shortUrlRes = new ShortUrlRes();
-        shortUrlRes.originUrl = Constants.HTTP_PROTOCOL + urlShorten.getOriginUrl();
+        shortUrlRes.originUrl = Constants.HTTP_PROTOCOL + urlShorten.getOriginUrlDomain();
         shortUrlRes.shortUrl = Constants.SHORTEN_URL_DOMAIN + urlShorten.getShortUrlCode();
         shortUrlRes.reqCount = urlShorten.getReqCount();
         return shortUrlRes;

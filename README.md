@@ -1,7 +1,18 @@
-해당 웹서버를 리눅스 기준으로 실행하기 위해 필요한 설치/빌드 방법
-gradle 이나 자바를 설치...
+
+### 환경
+- Java 8
+    - $ sudo apt-get install openjdk-8-jdk
+- Gradle
+    - $ sudo apt-get install gradle
 
 
+### 실행 방법
+- (프로젝트 루트 디렉토리에서) 터미널에서 아래 명령어를 입력.
+- $ ./gradlew build && java -jar build/libs/urlshorten-0.0.1-SNAPSHOT.jar
 
-- 실제로 접속 가능한 url만 넣을지 말지...
-- 중복된 코드를 생성할 가능성? 무시하기로 함.
+
+##### 이슈
+- 실제로 접속 가능한 url만 short url을 생성할지?
+- url string을 기반으로 해시함수를 통해 short url code 생성할지?
+- 중복된 short url code를 생성할 가능성? 
+- 요청수 카운트의 엄밀함을 위해 url domain만 저장할지? 프로토콜 처리는?
